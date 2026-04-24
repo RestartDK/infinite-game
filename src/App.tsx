@@ -1,121 +1,158 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { Suspense, lazy, useEffect, useState } from 'react'
+
+import { H2HMatrix } from './components/H2HMatrix'
+import { PlayerCard } from './components/PlayerCard'
+import { ReasoningPanel } from './components/ReasoningPanel'
+import { useGameStream } from './hooks/useGameStream'
 import './App.css'
 
+const Board3D = lazy(async () => {
+  const module = await import('./components/Board3D')
+  return { default: module.Board3D }
+})
+
+const useClock = (): string => {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const {
+    animatedMoves,
+    board,
+    currentPlayer,
+    currentSeat,
+    error,
+    headToHead,
+    logs,
+    models,
+    pendingColumn,
+    players,
+    stats,
+    status,
+    totals,
+    winner,
+  } = useGameStream()
+
+  const clock = useClock()
+
+  const leftModel = models?.[0] ?? null
+  const rightModel = models?.[1] ?? null
+
+  const movesA = board.reduce(
+    (sum, row) => sum + row.filter((cell) => cell === 'A').length,
+    0,
+  )
+  const movesB = board.reduce(
+    (sum, row) => sum + row.filter((cell) => cell === 'B').length,
+    0,
+  )
+
+  const currentPlayerName =
+    currentPlayer && models
+      ? models.find((model) => model.id === currentPlayer)?.shortName ?? currentPlayer
+      : null
+  const winnerName =
+    winner === 'draw'
+      ? 'Draw'
+      : winner
+        ? models?.find((model) => model.id === winner)?.shortName ?? winner
+        : null
+
+  const totalsLeft = leftModel ? totals[leftModel.id] : null
+  const totalsRight = rightModel ? totals[rightModel.id] : null
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <main className="app-shell">
+      <header className="top-bar">
+        {leftModel && totalsLeft ? (
+          <PlayerCard
+            model={leftModel}
+            seat="A"
+            totals={totalsLeft}
+            against={rightModel}
+            record={headToHead}
+            isActive={currentSeat === 'A' && status === 'streaming'}
+            moves={movesA}
+            align="left"
+          />
+        ) : (
+          <div className="player-slot">
+            <span className="player-slot__row">
+              <span className="badge badge--initials">··</span>
+              <span className="name">awaiting player</span>
+            </span>
+          </div>
+        )}
+
+        <div className="top-bar__center">
+          <span className="top-bar__score">
+            <span className="dot" /> {totalsLeft?.wins ?? 0}
+            {' — '}
+            {totalsRight?.wins ?? 0} <span className="dot" />
+          </span>
+          <span className="top-bar__time">{clock}</span>
+          <span className="top-bar__status" data-state={status}>
+            {status === 'ended' && winnerName
+              ? `result · ${winnerName}`
+              : currentPlayerName
+                ? `on move · ${currentPlayerName}`
+                : status}
+          </span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+
+        {rightModel && totalsRight ? (
+          <PlayerCard
+            model={rightModel}
+            seat="B"
+            totals={totalsRight}
+            against={leftModel}
+            record={headToHead}
+            isActive={currentSeat === 'B' && status === 'streaming'}
+            moves={movesB}
+            align="right"
+          />
+        ) : (
+          <div className="player-slot player-slot--right">
+            <span className="player-slot__row">
+              <span className="name">awaiting player</span>
+              <span className="badge badge--initials">··</span>
+            </span>
+          </div>
+        )}
+      </header>
+
+      <section className="stage">
+        <div className="board-stage-wrapper">
+          <Suspense
+            fallback={<div className="rail__empty">loading scene…</div>}
+          >
+            <Board3D
+              board={board}
+              currentSeat={currentSeat}
+              animatedMoves={animatedMoves}
+              pendingColumn={pendingColumn}
+            />
+          </Suspense>
+
+          <div className="board-overlay">
+            {players ? `${players[0]} · vs · ${players[1]}` : 'awaiting matchup'}
+          </div>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+
+        <ReasoningPanel logs={logs} status={status} error={error} />
       </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <footer className="footer">
+        <H2HMatrix records={stats?.headToHead ?? []} />
+      </footer>
+    </main>
   )
 }
 
