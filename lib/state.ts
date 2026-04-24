@@ -18,6 +18,20 @@ const TOTALS_KEY = 'ig:totals'
 const INVALID_MOVES_KEY = 'ig:invalidMoves'
 const RECENT_KEY = 'ig:recent'
 
+const REDIS_URL_ENV_NAMES = [
+  'REDIS_URL',
+  'REDIS_PRIVATE_URL',
+  'REDIS_TLS_URL',
+  'REDIS_PUBLIC_URL',
+  'KV_URL',
+  'DEMO_REDIS_URL',
+] as const
+
+const UPSTASH_REST_ENV_NAMES = [
+  ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+  ['KV_REST_API_URL', 'KV_REST_API_TOKEN'],
+] as const
+
 type SetOptions = {
   nx?: true
   ex?: number
@@ -43,19 +57,30 @@ type RedisBackend = {
 
 let redisBackendPromise: Promise<RedisBackend> | null = null
 
-const resolveUpstashConfig = () => {
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? null
-  const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? null
+const firstConfiguredValue = (envNames: readonly string[]) =>
+  envNames
+    .map((name) => process.env[name])
+    .find((value): value is string => Boolean(value))
 
-  if (!url || !token) {
-    throw new Error(
-      'Missing Upstash Redis credentials. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN or KV_REST_API_URL and KV_REST_API_TOKEN.',
-    )
+const resolveRedisUrl = () => firstConfiguredValue(REDIS_URL_ENV_NAMES) ?? null
+
+const resolveUpstashConfig = () => {
+  for (const [urlName, tokenName] of UPSTASH_REST_ENV_NAMES) {
+    const url = process.env[urlName]
+    const token = process.env[tokenName]
+
+    if (url && token) {
+      return { url, token }
+    }
   }
 
-  return { url, token }
+  throw new Error(
+    [
+      'Missing Redis configuration.',
+      `Set one Redis URL env var (${REDIS_URL_ENV_NAMES.join(', ')}) for a TCP Redis provider,`,
+      `or set one Upstash REST env pair (${UPSTASH_REST_ENV_NAMES.map(([urlName, tokenName]) => `${urlName} + ${tokenName}`).join(' or ')}).`,
+    ].join(' '),
+  )
 }
 
 const createLocalBackend = async (url: string): Promise<RedisBackend> => {
@@ -203,10 +228,10 @@ const createUpstashBackend = (): RedisBackend => {
 const getRedis = async () => {
   if (!redisBackendPromise) {
     redisBackendPromise = (async () => {
-      const localUrl = process.env.REDIS_URL ?? process.env.DEMO_REDIS_URL ?? null
+      const redisUrl = resolveRedisUrl()
 
-      if (localUrl) {
-        return await createLocalBackend(localUrl)
+      if (redisUrl) {
+        return await createLocalBackend(redisUrl)
       }
 
       return createUpstashBackend()
