@@ -17,6 +17,7 @@ import type { GameOutcomeReason, GameStreamEvent } from '../lib/contracts'
 import type { ModelId } from '../lib/models'
 import { pickRandomPair } from '../lib/random'
 import {
+  getRecentResults,
   recordResult,
   releaseStartLock,
   setActive,
@@ -25,19 +26,14 @@ import {
 
 const decisionSchema = z
   .object({
-    rationale: z
-      .string()
-      .min(1)
-      .max(600)
-      .describe('A concise tactical reason for the selected Connect 4 move.'),
     column: z
       .number()
       .int()
       .min(0)
       .max(6)
-      .describe('The zero-based legal Connect 4 column to play.'),
+      .describe('The zero-based legal Connect 4 column index to play.'),
   })
-  .describe('A Connect 4 move decision.')
+  .describe('A Connect 4 move.')
 
 const seatForTurn = (turn: number): Seat => (turn % 2 === 0 ? 'A' : 'B')
 
@@ -73,6 +69,8 @@ const toLine = (event: GameStreamEvent) => `${JSON.stringify(event)}\n`
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const decisionText = (column: number) => `Play column ${column + 1}.`
+
 const parseJsonObject = (text: string) => {
   const trimmed = text.trim()
 
@@ -94,16 +92,9 @@ const parseJsonObject = (text: string) => {
   }
 }
 
-const textFromMalformedValue = (value: unknown) => {
-  if (typeof value === 'string') {
-    return value
-  }
-
-  if (Array.isArray(value)) {
-    return value.filter((item) => typeof item === 'string').join(' ')
-  }
-
-  return null
+const parseColumn = (value: unknown) => {
+  const column = typeof value === 'string' ? Number(value) : value
+  return typeof column === 'number' && Number.isInteger(column) ? column : null
 }
 
 const repairMalformedDecision = (text: string | undefined, validColumns: number[]) => {
@@ -113,29 +104,33 @@ const repairMalformedDecision = (text: string | undefined, validColumns: number[
 
   const parsed = parseJsonObject(text)
 
+  const directColumn = parseColumn(parsed)
+  if (directColumn !== null && validColumns.includes(directColumn)) {
+    const repaired = decisionSchema.safeParse({ column: directColumn })
+    return repaired.success ? repaired.data : null
+  }
+
   if (!isRecord(parsed)) {
     return null
   }
 
-  const [entry] = Object.entries(parsed).filter(([key]) => {
+  const objectColumn = parseColumn(parsed.column)
+  if (objectColumn !== null && validColumns.includes(objectColumn)) {
+    const repaired = decisionSchema.safeParse({ column: objectColumn })
+    return repaired.success ? repaired.data : null
+  }
+
+  const [columnKey] = Object.keys(parsed).filter((key) => {
     const column = Number(key)
     return Number.isInteger(column) && validColumns.includes(column)
   })
 
-  if (!entry) {
-    return null
-  }
-
-  const [columnKey, malformedRationale] = entry
-  const rationale = textFromMalformedValue(malformedRationale)
-
-  if (!rationale) {
+  if (!columnKey) {
     return null
   }
 
   const repaired = decisionSchema.safeParse({
     column: Number(columnKey),
-    rationale,
   })
 
   return repaired.success ? repaired.data : null
@@ -170,17 +165,17 @@ async function decideMove(
       prompt: [
         `You are playing Connect 4 as ${seat === 'A' ? 'Red (R)' : 'Yellow (Y)'}.`,
         'Choose the best move from the legal columns only.',
-        'Keep the rationale concise and focus on the tactical reason for the move.',
-        'Return exactly this object shape: {"column": number, "rationale": string}. Do not use the column number as a JSON key.',
+        'Return only the zero-based column index in this exact object shape: {"column": number}.',
+        'Do not include a rationale, prose, arrays, or the column number as a JSON key.',
         `Legal columns: ${validColumns.join(', ')}`,
         'Board rows are listed top to bottom. "." means empty.',
         boardToPrompt(board),
       ].join('\n\n'),
       output: Output.object({
         schema: decisionSchema,
-        name: 'connect4_move_decision',
+        name: 'connect4_move',
         description:
-          'A single Connect 4 move decision with a zero-based column and concise rationale.',
+          'A single Connect 4 move with only a zero-based column index.',
       }),
     })
 
@@ -213,7 +208,7 @@ async function decideMove(
         turn,
         player,
         seat,
-        rationale: output.rationale,
+        rationale: decisionText(output.column),
         column: invalidReason ? null : output.column,
         legalColumns: validColumns,
         invalidReason,
@@ -222,7 +217,7 @@ async function decideMove(
 
     return {
       column: invalidReason ? null : output.column,
-      rationale: output.rationale,
+      rationale: decisionText(output.column),
       invalidReason,
     }
   } catch (error) {
@@ -237,7 +232,7 @@ async function decideMove(
           turn,
           player,
           seat,
-          rationale: repaired.rationale,
+          rationale: decisionText(repaired.column),
           column: repaired.column,
           legalColumns: validColumns,
         }),
@@ -245,7 +240,7 @@ async function decideMove(
 
       return {
         column: repaired.column,
-        rationale: repaired.rationale,
+        rationale: decisionText(repaired.column),
         invalidReason: undefined,
       }
     }
@@ -322,7 +317,9 @@ async function finalizeGame(
     }
 
     try {
-      const [nextPlayerA, nextPlayerB] = pickRandomPair()
+      const [nextPlayerA, nextPlayerB] = pickRandomPair(
+        await getRecentResults(),
+      )
       const nextRun = await start(playOneGame, [
         nextPlayerA,
         nextPlayerB,
