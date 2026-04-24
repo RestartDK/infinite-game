@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Build / runtime artifacts
+.output
+.workflow-data
+.swc
+.nitro
+.vercel
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

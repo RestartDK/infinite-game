@@ -6,14 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "demo:redis:up": "docker compose up -d redis",
+    "demo:redis:down": "docker compose down",
+    "test": "bun test",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.104",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
+    "@upstash/redis": "^1.37.0",
+    "ai": "^6.0.168",
     "nitro": "^3.0.260415-beta",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "workflow": "^4.2.4"
+    "redis": "^5.12.1",
+    "three": "^0.184.0",
+    "workflow": "^4.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -23,6 +34,7 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.0",
     "@vitejs/plugin-react": "^6.0.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.2.1",

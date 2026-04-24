@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ZAI icon">
+  <rect width="64" height="64" rx="16" fill="#2563eb" />
+  <path
+    d="M16 20h32L20 44h28"
+    fill="none"
+    stroke="#eff6ff"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="6"
+  />
+</svg>

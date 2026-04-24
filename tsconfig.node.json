@@ -20,5 +20,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "api/**/*.ts", "workflows/**/*.ts"]
+  "include": ["vite.config.ts", "api/**/*.ts", "workflows/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["lib/**/*.test.ts"]
 }
