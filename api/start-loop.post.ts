@@ -6,6 +6,7 @@ import { pickRandomPair } from '../lib/random'
 import {
   getActive,
   getLoopOwner,
+  getRecentResults,
   releaseStartLock,
   setActive,
   setLoopOwner,
@@ -40,7 +41,7 @@ export default defineEventHandler(async () => {
       }
     }
 
-    const [playerA, playerB] = pickRandomPair()
+    const [playerA, playerB] = pickRandomPair(await getRecentResults())
     const startedAt = new Date().toISOString()
     const loopId = (existing?.loopId ?? (await getLoopOwner())) ?? crypto.randomUUID()
 
