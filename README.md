@@ -35,7 +35,15 @@ bun run demo:redis:down
 
 ## Hosted mode
 
-If `REDIS_URL` is not set, the app falls back to Upstash Redis using:
+For hosted deployments you can use a normal Redis TCP URL. Add one of these
+environment variables in Vercel:
+
+```bash
+REDIS_URL=redis://...
+# or REDIS_PRIVATE_URL / REDIS_TLS_URL / REDIS_PUBLIC_URL / KV_URL
+```
+
+If no Redis URL is set, the app falls back to Upstash Redis REST credentials:
 
 ```bash
 UPSTASH_REDIS_REST_URL=...
