@@ -1,0 +1,15 @@
+{
+  "eventType": "step_created",
+  "specVersion": 3,
+  "correlationId": "step_01KQ07VJCBJGR3YVVT20YVFAXH",
+  "eventData": {
+    "stepName": "step//./workflows/user-signup//sendWelcomeEmail",
+    "input": {
+      "__type": "Uint8Array",
+      "data": "ZGV2bFt7ImFyZ3MiOjEsImNsb3N1cmVWYXJzIjotMSwidGhpc1ZhbCI6LTF9LFsyXSx7ImlkIjozLCJlbWFpbCI6NH0sIjcyODUzZDJjLWQyOTktNDI4MC04MTBjLWQ5Nzk3MDk5YzVkYSIsImhlbGxvQGV4YW1wbGUuY29tIl0="
+    }
+  },
+  "runId": "wrun_01KQ07VJAAX8VAPTT85DQE0S0C",
+  "eventId": "evnt_01KQ07VJJHJVZ2MH1R9M5Y470X",
+  "createdAt": "2026-04-24T17:16:02.513Z"
+}
